@@ -509,6 +509,18 @@ function storageReadRaw(key) {
   return env.read_register(0);
 }
 /**
+ * Reads the utf-8 string value from NEAR storage that is stored under the provided key.
+ *
+ * @param key - The utf-8 string key to read from storage.
+ */
+function storageRead(key) {
+  const ret = storageReadRaw(encode(key));
+  if (ret !== null) {
+    return decode(ret);
+  }
+  return null;
+}
+/**
  * Checks for the existance of a value under the provided key in NEAR storage.
  *
  * @param key - The key to check for in storage.
@@ -1046,6 +1058,188 @@ class UnorderedMapIterator {
   }
 }
 
+function serializeIndex(index) {
+  const data = new Uint32Array([index]);
+  const array = new Uint8Array(data.buffer);
+  return array;
+}
+function deserializeIndex(rawIndex) {
+  const [data] = new Uint32Array(rawIndex.buffer);
+  return data;
+}
+/**
+ * An unordered set that stores data in NEAR storage.
+ */
+class UnorderedSet {
+  /**
+   * @param prefix - The byte prefix to use when storing elements inside this collection.
+   */
+  constructor(prefix) {
+    this.prefix = prefix;
+    this.elementIndexPrefix = `${prefix}i`;
+    this._elements = new Vector(`${prefix}e`);
+  }
+  /**
+   * The number of elements stored in the collection.
+   */
+  get length() {
+    return this._elements.length;
+  }
+  /**
+   * Checks whether the collection is empty.
+   */
+  isEmpty() {
+    return this._elements.isEmpty();
+  }
+  /**
+   * Checks whether the collection contains the value.
+   *
+   * @param element - The value for which to check the presence.
+   * @param options - Options for storing data.
+   */
+  contains(element, options) {
+    const indexLookup = this.elementIndexPrefix + serializeValueWithOptions(element, options);
+    return storageHasKey(indexLookup);
+  }
+  /**
+   * If the set did not have this value present, `true` is returned.
+   * If the set did have this value present, `false` is returned.
+   *
+   * @param element - The value to store in the collection.
+   * @param options - Options for storing the data.
+   */
+  set(element, options) {
+    const indexLookup = this.elementIndexPrefix + serializeValueWithOptions(element, options);
+    if (storageRead(indexLookup)) {
+      return false;
+    }
+    const nextIndex = this.length;
+    const nextIndexRaw = serializeIndex(nextIndex);
+    storageWriteRaw(encode(indexLookup), nextIndexRaw);
+    this._elements.push(element, options);
+    return true;
+  }
+  /**
+   * Returns true if the element was present in the set.
+   *
+   * @param element - The entry to remove.
+   * @param options - Options for retrieving and storing data.
+   */
+  remove(element, options) {
+    const indexLookup = this.elementIndexPrefix + serializeValueWithOptions(element, options);
+    const indexRaw = storageReadRaw(encode(indexLookup));
+    if (!indexRaw) {
+      return false;
+    }
+    // If there is only one element then swap remove simply removes it without
+    // swapping with the last element.
+    if (this.length === 1) {
+      storageRemove(indexLookup);
+      const index = deserializeIndex(indexRaw);
+      this._elements.swapRemove(index);
+      return true;
+    }
+    // If there is more than one element then swap remove swaps it with the last
+    // element.
+    const lastElement = this._elements.get(this.length - 1, options);
+    assert(!!lastElement, ERR_INCONSISTENT_STATE);
+    storageRemove(indexLookup);
+    // If the removed element was the last element from keys, then we don't need to
+    // reinsert the lookup back.
+    if (lastElement !== element) {
+      const lastLookupElement = this.elementIndexPrefix + serializeValueWithOptions(lastElement, options);
+      storageWriteRaw(encode(lastLookupElement), indexRaw);
+    }
+    const index = deserializeIndex(indexRaw);
+    this._elements.swapRemove(index);
+    return true;
+  }
+  /**
+   * Remove all of the elements stored within the collection.
+   */
+  clear(options) {
+    for (const element of this._elements) {
+      const indexLookup = this.elementIndexPrefix + serializeValueWithOptions(element, options);
+      storageRemove(indexLookup);
+    }
+    this._elements.clear();
+  }
+  [Symbol.iterator]() {
+    return this._elements[Symbol.iterator]();
+  }
+  /**
+   * Create a iterator on top of the default collection iterator using custom options.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  createIteratorWithOptions(options) {
+    return {
+      [Symbol.iterator]: () => new VectorIterator(this._elements, options)
+    };
+  }
+  /**
+   * Return a JavaScript array of the data stored within the collection.
+   *
+   * @param options - Options for retrieving and storing the data.
+   */
+  toArray(options) {
+    const array = [];
+    const iterator = options ? this.createIteratorWithOptions(options) : this;
+    for (const value of iterator) {
+      array.push(value);
+    }
+    return array;
+  }
+  /**
+   * Extends the current collection with the passed in array of elements.
+   *
+   * @param elements - The elements to extend the collection with.
+   */
+  extend(elements) {
+    for (const element of elements) {
+      this.set(element);
+    }
+  }
+  /**
+   * Serialize the collection.
+   *
+   * @param options - Options for storing the data.
+   */
+  serialize(options) {
+    return serializeValueWithOptions(this, options);
+  }
+  /**
+   * Converts the deserialized data from storage to a JavaScript instance of the collection.
+   *
+   * @param data - The deserialized data to create an instance from.
+   */
+  static reconstruct(data) {
+    const set = new UnorderedSet(data.prefix);
+    // reconstruct Vector
+    const elementsPrefix = data.prefix + "e";
+    set._elements = new Vector(elementsPrefix);
+    set._elements.length = data._elements.length;
+    return set;
+  }
+  elements({
+    options,
+    start,
+    limit
+  }) {
+    const ret = [];
+    if (start === undefined) {
+      start = 0;
+    }
+    if (limit == undefined) {
+      limit = this.length - start;
+    }
+    for (let i = start; i < start + limit; i++) {
+      ret.push(this._elements.get(i, options));
+    }
+    return ret;
+  }
+}
+
 /**
  * Tells the SDK to expose this function as a view function.
  *
@@ -1125,17 +1319,19 @@ var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _class, _class2;
 let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = view(), _dec5 = call({}), _dec6 = call({}), _dec(_class = (_class2 = class VotingContract {
   options = new UnorderedMap("options");
   votes = new UnorderedMap("votes");
-  // users= new UnorderedSet<string>("users");
-
+  voters = new UnorderedSet("voters");
   getOptions() {
     return this.options.toArray();
   }
+
+  /** [['1', ['user1', 'user2']], ['2', ['user3', 'user4']]] */
   getVotes() {
     return this.votes.toArray();
   }
   votesAvailable({
     user
   }) {
+    if (!this.voters.contains(user)) return false;
     for (const v in Object.keys(this.votes)) {
       const values = this.votes.get(v, {
         defaultValue: []
@@ -1148,11 +1344,6 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
     vote,
     user
   }) {
-    // for (const v in Object.keys(this.votes)) {
-    //   const values = this.votes.get(v, { defaultValue: []})
-    //   if (values.includes(user)) return;
-    // }
-
     if (this.votesAvailable({
       user
     })) {
@@ -1170,11 +1361,12 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
     this.options.set('2', 'Barack Obama');
     this.options.set('3', 'Joe Biden');
 
+    // voters
+    this.voters.set("taras-shevchenko.testnet");
+    this.voters.set("illya-pashchenko.testnet");
+
     // votes
     this.votes.clear();
-
-    // users
-    // this.users.clear();
   }
 }, (_applyDecoratedDescriptor(_class2.prototype, "getOptions", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "getOptions"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getVotes", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getVotes"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "votesAvailable", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "votesAvailable"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "addVote", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "addVote"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "clearPools", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "clearPools"), _class2.prototype)), _class2)) || _class);
 function clearPools() {

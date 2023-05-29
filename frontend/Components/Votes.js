@@ -20,6 +20,7 @@ const Votes = ({ options, votes, addVote, available }) => {
             <tr key={index}>
               <td>{options[index]}</td>
               <td>{votes[index] ? votes[index].length : 0}</td>
+              {console.log(votes)}
               <td>
                 {available ? <Button onClick={() => addVote(index)}>Vote</Button> : null}
               </td>

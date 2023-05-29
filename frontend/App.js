@@ -16,6 +16,7 @@ export default function App({ isSignedIn, contractId, wallet }) {
   const [options, setOptions] = useState({});
   const [votes, setVotes] = useState({});
   const [available, setAvailable] = useState(false);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,15 +55,20 @@ export default function App({ isSignedIn, contractId, wallet }) {
   const reset = async () => {
     await callMethod("clearPools");
     await loadOptions();
+    setProcessing(true);
+    await new Promise((resolve) => setTimeout(resolve, 10000))
+    setProcessing(false);
+    await loadVotes();
+    setAvailable(true);
   }
 
   const loadOptions = async () => {
-    const data = await viewMethod("getOptions") || [];
+    const data = await viewMethod("getOptions");
     setOptions(Object.fromEntries(data))
   }
 
   const loadVotes = async () => {
-    const data = await viewMethod("getVotes") || [];
+    const data = await viewMethod("getVotes");
     setVotes(Object.fromEntries(data))
   }
 
@@ -71,6 +77,11 @@ export default function App({ isSignedIn, contractId, wallet }) {
       vote,
       user: wallet.accountId,
     });
+    setAvailable(false);
+    setProcessing(true);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    setProcessing(false);
+    await loadVotes();
   }
 
   const Home = () =>
@@ -100,7 +111,8 @@ export default function App({ isSignedIn, contractId, wallet }) {
       <Navbar collapseOnSelect expand="lg" bg="dark" variant="dark">
         <Container>
           <Navbar.Brand href="/">
-            Pooling
+            Pooling 
+            {processing ? <span style={{color: 'yellow'}}> [Processing] </span> : null}
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="responsive-navbar-nav" />
           <Navbar.Collapse id="responsive-navbar-nav">
@@ -115,7 +127,7 @@ export default function App({ isSignedIn, contractId, wallet }) {
       </Navbar>
 
       {isSignedIn
-        ? <Home />
+        ? <Home></Home>
         : <Container>
             <Row className='justify-content-center d-flex'>
               <Card style={{ marginTop: "5vh", width: "30vh" }}>

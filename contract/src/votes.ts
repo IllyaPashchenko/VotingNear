@@ -12,6 +12,7 @@ import {
 class VotingContract {
   options = new UnorderedMap<string>("options");
   votes = new UnorderedMap<string[]>("votes");
+  voters = new UnorderedSet<string>("voters");
 
   @view({})
   getOptions(): [string, string][] {
@@ -26,6 +27,7 @@ class VotingContract {
 
   @view({})
   votesAvailable({ user }: { user: string }): boolean {
+    if (!this.voters.contains(user)) return false;
     for (const v in Object.keys(this.votes)) {
       const values = this.votes.get(v, { defaultValue: []})
       if (values.includes(user)) return false;
@@ -49,6 +51,10 @@ class VotingContract {
     this.options.set('1', 'Donald Trump');
     this.options.set('2', 'Barack Obama');
     this.options.set('3', 'Joe Biden');
+
+    // voters
+    this.voters.set("taras-shevchenko.testnet");
+    this.voters.set("illya-pashchenko.testnet")
 
     // votes
     this.votes.clear();
