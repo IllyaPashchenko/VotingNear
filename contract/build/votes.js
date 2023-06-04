@@ -1357,13 +1357,20 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
   clearPools() {
     // options
     this.options.clear();
-    this.options.set('1', 'Donald Trump');
-    this.options.set('2', 'Barack Obama');
-    this.options.set('3', 'Joe Biden');
+    this.options.set('1', 'Антон Треущенко');
+    this.options.set('2', 'Сурен Мартікян');
+    this.options.set('3', 'Ілля Пащенко');
 
     // voters
+    this.voters.clear();
     this.voters.set("taras-shevchenko.testnet");
     this.voters.set("illya-pashchenko.testnet");
+    this.voters.set("andriy-malyshko.testnet");
+    this.voters.set("grygoriy-skovoroda.testnet");
+    this.voters.set("ivan-franko.testnet");
+    this.voters.set("lesya-ukrainka.testnet");
+    this.voters.set("lina-kostenko.testnet");
+    this.voters.set("taras-shevchenko.testnet");
 
     // votes
     this.votes.clear();

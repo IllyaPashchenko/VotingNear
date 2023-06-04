@@ -89,7 +89,7 @@ export default function App({ isSignedIn, contractId, wallet }) {
       <Row>
         <Col>
           <h2 style={{ marginTop: "20px", marginLeft: '20px' }}>
-          Who is the president of the USA?
+          Хто буде старостою ІА-94?
           </h2>
         </Col>
       </Row>
@@ -132,7 +132,7 @@ export default function App({ isSignedIn, contractId, wallet }) {
             <Row className='justify-content-center d-flex'>
               <Card style={{ marginTop: "5vh", width: "30vh" }}>
                 <Container>
-                  <Row>Hey there bud! Please Sign in :D </Row>
+                  <Row>Please Log in</Row>
                   <Row className='justify-content-center d-flex'>
                     <Button style={{ margin: "5vh" }} onClick={signInFun}>
                       Login
