@@ -78,37 +78,37 @@ export default function App({ isSignedIn, contractId, wallet }) {
   }
 
   const addVote = async (vote) => {
+    setAvailable(false);
+    setProcessing(true);
     await callMethod("addVote", {
       vote,
       user: wallet.accountId,
     });
-    setAvailable(false);
-    setProcessing(true);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     setProcessing(false);
     await loadVotes();
   }
 
   const addOption = async () => {
+    setProcessing(true);
     await callMethod("addOption", {
       option: inputOption,
       user: wallet.accountId,
     })
-    setProcessing(true);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     setProcessing(false);
-    await loadVotes();
+    await loadOptions();
   }
 
   const deleteOption = async (optionId) => {
+    setProcessing(true);
     await callMethod("deleteOption", {
       optionId,
       user: wallet.accountId,
     })
-    setProcessing(true);
     await new Promise((resolve) => setTimeout(resolve, 10000));
     setProcessing(false);
-    await loadVotes();
+    await loadOptions();
   }
 
   const Home = () =>
@@ -120,11 +120,12 @@ export default function App({ isSignedIn, contractId, wallet }) {
           </h2>
         </Col>
       </Row>
-      <Votes options={options} votes={votes} addVote={addVote} available={available} isAdmin={isAdmin} deleteOption={deleteOption}/>
+      <Votes options={options} votes={votes} addVote={addVote} available={available} isAdmin={isAdmin} deleteOption={deleteOption} processing={processing} accountId={wallet.accountId}/>
       {(isAdmin) ? (
         <Row>
           <Col>
             <Button
+              disabled={processing}
               style={{ marginLeft: '20px' }}
               onClick={reset}
             >
@@ -132,11 +133,8 @@ export default function App({ isSignedIn, contractId, wallet }) {
             </Button>
           </Col>
           <Col>
-            <Form.Control type="text" placeholder="Your option" value={inputOption} onChange={v => {
-              console.log(v);
-              setInputOption(v.target.value)
-            }}/>
-            <Button style={{marginTop: 20}} onClick={addOption}>Add Option</Button>
+            <Form.Control disabled={processing} type="text" placeholder="Your option" value={inputOption} onChange={v => setInputOption(v.target.value)}/>
+            <Button disabled={!inputOption || processing} style={{marginTop: 20}} onClick={addOption}>Add Option</Button>
           </Col>
         </Row>
       ) : 
@@ -165,7 +163,7 @@ export default function App({ isSignedIn, contractId, wallet }) {
       </Navbar>
 
       {isSignedIn
-        ? <Home></Home>
+        ? <>{Home()}</>
         : <Container>
             <Row className='justify-content-center d-flex'>
               <Card style={{ marginTop: "5vh", width: "30vh" }}>
