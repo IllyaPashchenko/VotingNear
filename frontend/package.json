@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "license": "(MIT AND Apache-2.0)",
   "scripts": {
-    "start": "CONTRACT_NAME=dev-1685347921452-45055924650637 parcel index.html --open",
-    "build": "CONTRACT_NAME=dev-1685347921452-45055924650637 parcel build index.html --public-url ./"
+    "start": "./start.sh",
+    "build": "./build.sh"
   },
   "devDependencies": {
     "@babel/core": "^7.20.12",

@@ -6,6 +6,7 @@ import {
   LookupMap,
   UnorderedSet,
   UnorderedMap,
+  initialize,
 } from "near-sdk-js";
 
 @NearBindgen({})
@@ -13,6 +14,7 @@ class VotingContract {
   options = new UnorderedMap<string>("options");
   votes = new UnorderedMap<string[]>("votes");
   voters = new UnorderedSet<string>("voters");
+  admins = new UnorderedSet<string>("admins")
 
   @view({})
   getOptions(): [string, string][] {
@@ -25,14 +27,19 @@ class VotingContract {
     return this.votes.toArray();
   }
 
+
   @view({})
   votesAvailable({ user }: { user: string }): boolean {
     if (!this.voters.contains(user)) return false;
-    for (const v in Object.keys(this.votes)) {
-      const values = this.votes.get(v, { defaultValue: []})
-      if (values.includes(user)) return false;
+    for (const row of this.votes.toArray()) {
+      if (row[1].includes(user)) return false;
     }
     return true;
+  }
+
+  @view({})
+  isUserAdmin({user}: {user: string}): boolean {
+    return (this.admins.contains(user)) ? true : false;
   }
 
   @call({})
@@ -45,15 +52,36 @@ class VotingContract {
   }
 
   @call({})
-  clearPools() {
+  addOption({option, user}: {option: string, user: string}) {
+    if(!this.admins.contains(user)) return;
+    
+    let new_index = Math.max(...this.options.toArray().map(i => Number(i[0]))) + 1;
+    this.options.set(new_index.toString(), option);
+  }
+
+  @call({})
+  deleteOption({optionId, user}: {optionId:string, user: string}) {
+    if(!this.admins.contains(user)) return;
+    
+    this.options.remove(optionId);
+  }
+
+  @call({})
+  clearPools({user}: {user: string}) {
+    if(!this.admins.contains(user)) return;
     // options
     this.options.clear();
+    // votes
+    this.votes.clear();
+  }
+
+  @call({})
+  initialize() {
     this.options.set('1', 'Антон Треущенко');
     this.options.set('2', 'Сурен Мартікян');
     this.options.set('3', 'Ілля Пащенко');
+    this.options.set('4', 'Who else');
 
-    // voters
-    this.voters.clear();
     this.voters.set("taras-shevchenko.testnet");
     this.voters.set("illya-pashchenko.testnet");
     this.voters.set("andriy-malyshko.testnet");
@@ -63,7 +91,6 @@ class VotingContract {
     this.voters.set("lina-kostenko.testnet");
     this.voters.set("taras-shevchenko.testnet");
 
-    // votes
-    this.votes.clear();
+    this.admins.set("illya-pashchenko.testnet")
   }
 }

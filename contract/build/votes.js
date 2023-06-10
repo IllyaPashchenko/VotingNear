@@ -1315,11 +1315,12 @@ function NearBindgen({
   };
 }
 
-var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _class, _class2;
-let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = view(), _dec5 = call({}), _dec6 = call({}), _dec(_class = (_class2 = class VotingContract {
+var _dec, _dec2, _dec3, _dec4, _dec5, _dec6, _dec7, _dec8, _dec9, _dec10, _class, _class2;
+let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _dec4 = view(), _dec5 = view(), _dec6 = call({}), _dec7 = call({}), _dec8 = call({}), _dec9 = call({}), _dec10 = call({}), _dec(_class = (_class2 = class VotingContract {
   options = new UnorderedMap("options");
   votes = new UnorderedMap("votes");
   voters = new UnorderedSet("voters");
+  admins = new UnorderedSet("admins");
   getOptions() {
     return this.options.toArray();
   }
@@ -1332,13 +1333,15 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
     user
   }) {
     if (!this.voters.contains(user)) return false;
-    for (const v in Object.keys(this.votes)) {
-      const values = this.votes.get(v, {
-        defaultValue: []
-      });
-      if (values.includes(user)) return false;
+    for (const row of this.votes.toArray()) {
+      if (row[1].includes(user)) return false;
     }
     return true;
+  }
+  isUserAdmin({
+    user
+  }) {
+    return this.admins.contains(user) ? true : false;
   }
   addVote({
     vote,
@@ -1354,15 +1357,35 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
       this.votes.set(vote, values);
     }
   }
-  clearPools() {
+  addOption({
+    option,
+    user
+  }) {
+    if (!this.admins.contains(user)) return;
+    let new_index = Math.max(...this.options.toArray().map(i => Number(i[0]))) + 1;
+    this.options.set(new_index.toString(), option);
+  }
+  deleteOption({
+    optionId,
+    user
+  }) {
+    if (!this.admins.contains(user)) return;
+    this.options.remove(optionId);
+  }
+  clearPools({
+    user
+  }) {
+    if (!this.admins.contains(user)) return;
     // options
     this.options.clear();
+    // votes
+    this.votes.clear();
+  }
+  initialize() {
     this.options.set('1', 'Антон Треущенко');
     this.options.set('2', 'Сурен Мартікян');
     this.options.set('3', 'Ілля Пащенко');
-
-    // voters
-    this.voters.clear();
+    this.options.set('4', 'Who else');
     this.voters.set("taras-shevchenko.testnet");
     this.voters.set("illya-pashchenko.testnet");
     this.voters.set("andriy-malyshko.testnet");
@@ -1371,11 +1394,23 @@ let VotingContract = (_dec = NearBindgen({}), _dec2 = view(), _dec3 = view(), _d
     this.voters.set("lesya-ukrainka.testnet");
     this.voters.set("lina-kostenko.testnet");
     this.voters.set("taras-shevchenko.testnet");
-
-    // votes
-    this.votes.clear();
+    this.admins.set("illya-pashchenko.testnet");
   }
-}, (_applyDecoratedDescriptor(_class2.prototype, "getOptions", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "getOptions"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getVotes", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getVotes"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "votesAvailable", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "votesAvailable"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "addVote", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "addVote"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "clearPools", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "clearPools"), _class2.prototype)), _class2)) || _class);
+}, (_applyDecoratedDescriptor(_class2.prototype, "getOptions", [_dec2], Object.getOwnPropertyDescriptor(_class2.prototype, "getOptions"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "getVotes", [_dec3], Object.getOwnPropertyDescriptor(_class2.prototype, "getVotes"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "votesAvailable", [_dec4], Object.getOwnPropertyDescriptor(_class2.prototype, "votesAvailable"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "isUserAdmin", [_dec5], Object.getOwnPropertyDescriptor(_class2.prototype, "isUserAdmin"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "addVote", [_dec6], Object.getOwnPropertyDescriptor(_class2.prototype, "addVote"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "addOption", [_dec7], Object.getOwnPropertyDescriptor(_class2.prototype, "addOption"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "deleteOption", [_dec8], Object.getOwnPropertyDescriptor(_class2.prototype, "deleteOption"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "clearPools", [_dec9], Object.getOwnPropertyDescriptor(_class2.prototype, "clearPools"), _class2.prototype), _applyDecoratedDescriptor(_class2.prototype, "initialize", [_dec10], Object.getOwnPropertyDescriptor(_class2.prototype, "initialize"), _class2.prototype)), _class2)) || _class);
+function initialize() {
+  const _state = VotingContract._getState();
+  if (!_state && VotingContract._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+  const _contract = VotingContract._create();
+  if (_state) {
+    VotingContract._reconstruct(_contract, _state);
+  }
+  const _args = VotingContract._getArgs();
+  const _result = _contract.initialize(_args);
+  VotingContract._saveToStorage(_contract);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
+}
 function clearPools() {
   const _state = VotingContract._getState();
   if (!_state && VotingContract._requireInit()) {
@@ -1387,6 +1422,34 @@ function clearPools() {
   }
   const _args = VotingContract._getArgs();
   const _result = _contract.clearPools(_args);
+  VotingContract._saveToStorage(_contract);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
+}
+function deleteOption() {
+  const _state = VotingContract._getState();
+  if (!_state && VotingContract._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+  const _contract = VotingContract._create();
+  if (_state) {
+    VotingContract._reconstruct(_contract, _state);
+  }
+  const _args = VotingContract._getArgs();
+  const _result = _contract.deleteOption(_args);
+  VotingContract._saveToStorage(_contract);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
+}
+function addOption() {
+  const _state = VotingContract._getState();
+  if (!_state && VotingContract._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+  const _contract = VotingContract._create();
+  if (_state) {
+    VotingContract._reconstruct(_contract, _state);
+  }
+  const _args = VotingContract._getArgs();
+  const _result = _contract.addOption(_args);
   VotingContract._saveToStorage(_contract);
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
 }
@@ -1402,6 +1465,19 @@ function addVote() {
   const _args = VotingContract._getArgs();
   const _result = _contract.addVote(_args);
   VotingContract._saveToStorage(_contract);
+  if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
+}
+function isUserAdmin() {
+  const _state = VotingContract._getState();
+  if (!_state && VotingContract._requireInit()) {
+    throw new Error("Contract must be initialized");
+  }
+  const _contract = VotingContract._create();
+  if (_state) {
+    VotingContract._reconstruct(_contract, _state);
+  }
+  const _args = VotingContract._getArgs();
+  const _result = _contract.isUserAdmin(_args);
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
 }
 function votesAvailable() {
@@ -1444,5 +1520,5 @@ function getOptions() {
   if (_result !== undefined) if (_result && _result.constructor && _result.constructor.name === "NearPromise") _result.onReturn();else env.value_return(VotingContract._serialize(_result, true));
 }
 
-export { addVote, clearPools, getOptions, getVotes, votesAvailable };
+export { addOption, addVote, clearPools, deleteOption, getOptions, getVotes, initialize, isUserAdmin, votesAvailable };
 //# sourceMappingURL=votes.js.map

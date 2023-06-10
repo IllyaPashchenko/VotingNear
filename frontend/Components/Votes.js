@@ -5,7 +5,7 @@ import { async } from 'regenerator-runtime';
 
 const contractId = process.env.CONTRACT_NAME;
 
-const Votes = ({ options, votes, addVote, available }) => {
+const Votes = ({ options, votes, addVote, available, isAdmin, deleteOption}) => {
   return (
       <Table style={{ margin: '20px' }} striped bordered hover>
         <thead>
@@ -23,6 +23,7 @@ const Votes = ({ options, votes, addVote, available }) => {
               {console.log(votes)}
               <td>
                 {available ? <Button onClick={() => addVote(index)}>Vote</Button> : null}
+                {isAdmin ? <Button variant='danger' style={{marginLeft: 16}} onClick={() => deleteOption(index)}>Delete</Button> : null}
               </td>
             </tr>
           )}
